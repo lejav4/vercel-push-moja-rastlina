@@ -1,13 +1,6 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "moja-rastlina/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "build"
-      }
-    }
-  ],
-  "framework": "other"
+  "buildCommand": "cd moja-rastlina && npm run build",
+  "outputDirectory": "moja-rastlina/build",
+  "installCommand": "cd moja-rastlina && npm install"
 }
