@@ -1,7 +1,7 @@
 {
   "version": 2,
   "framework": "create-react-app",
-  "installCommand": "npm ci --prefix moja-rastlina",
+  "installCommand": "npm install --prefix moja-rastlina",
   "buildCommand": "npm run build --prefix moja-rastlina",
   "outputDirectory": "moja-rastlina/build",
   "routes": [
