@@ -1,6 +1,0 @@
-{
-  "version": 2,
-  "buildCommand": "cd moja-rastlina && npm run build",
-  "outputDirectory": "moja-rastlina/build",
-  "installCommand": "cd moja-rastlina && npm install"
-}
