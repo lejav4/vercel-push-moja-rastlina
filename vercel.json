@@ -1,12 +1,9 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "moja-rastlina/package.json",
-      "use": "@vercel/static-build",
-      "config": { "distDir": "build" }
-    }
-  ],
+  "framework": "create-react-app",
+  "installCommand": "npm ci --prefix moja-rastlina",
+  "buildCommand": "npm run build --prefix moja-rastlina",
+  "outputDirectory": "moja-rastlina/build",
   "routes": [
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }
