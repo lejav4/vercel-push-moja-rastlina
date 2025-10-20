@@ -44,7 +44,6 @@ export default function PlantGrowthTracker() {
   const [hasCompletedRun, setHasCompletedRun] = useState(false);
   const [allowDeleteActivities, setAllowDeleteActivities] = useState(true);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
-  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const [todayPoints, setTodayPoints] = useState(0); // točke za današnji dan
   const [lastActivityDate, setLastActivityDate] = useState<string>(''); // zadnji dan z aktivnostjo
 
@@ -294,46 +293,7 @@ export default function PlantGrowthTracker() {
       setShowAddActivity(false);
   };
 
-  // Export/Import helpers for syncing data across devices (localhost ↔ Vercel)
-  type ExportPayload = {
-    activities: ActivityType[];
-    activityHistory: Record<string, DayActivity>;
-    lastActivityDate: string;
-    version: number;
-    exportedAt: string;
-  };
-
-  const exportAllData = () => {
-    const payload: ExportPayload = {
-      activities,
-      activityHistory,
-      lastActivityDate,
-      version: 1,
-      exportedAt: new Date().toISOString(),
-    };
-    const data = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(data);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'moja-rastlina-backup.json';
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const importAllData = async (file: File) => {
-    try {
-      const text = await file.text();
-      const payload: ExportPayload = JSON.parse(text);
-      if (!payload || typeof payload !== 'object') return;
-      if (Array.isArray(payload.activities)) setActivities(payload.activities);
-      if (payload.activityHistory && typeof payload.activityHistory === 'object') setActivityHistory(payload.activityHistory);
-      if (typeof payload.lastActivityDate === 'string') setLastActivityDate(payload.lastActivityDate);
-      // Persist immediately
-      localStorage.setItem(STORAGE_ACTIVITIES, JSON.stringify(payload.activities || []));
-      localStorage.setItem(STORAGE_ACTIVITY_HISTORY, JSON.stringify(payload.activityHistory || {}));
-      localStorage.setItem(STORAGE_LAST_ACTIVITY_DATE, payload.lastActivityDate || '');
-    } catch {}
-  };
+  // (No cross-device sync by design) — data persists per device via localStorage
 
   const deleteActivity = (id: number) => {
     setActivities(activities.filter(a => a.id !== id));
@@ -611,20 +571,7 @@ export default function PlantGrowthTracker() {
                 <Sprout size={16} className="icon-left" />
                 Spremeni
               </button>
-              {/* Sync Controls */}
-              <button className="btn-change" onClick={exportAllData} title="Izvozi podatke (JSON)">Izvozi</button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="application/json"
-                style={{ display: 'none' }}
-                onChange={(e) => {
-                  const f = e.target.files && e.target.files[0];
-                  if (f) importAllData(f);
-                  e.currentTarget.value = '';
-                }}
-              />
-              <button className="btn-change" onClick={() => fileInputRef.current?.click()} title="Uvozi podatke (JSON)">Uvozi</button>
+              {/* (Sync controls removed by request) */}
             </div>
           </div>
 
