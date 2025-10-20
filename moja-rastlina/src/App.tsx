@@ -670,7 +670,7 @@ export default function PlantGrowthTracker() {
                   </div>
                   <div className="activity-actions">
                     <select 
-                      className="select-small" 
+                      className="activity-select" 
                       onChange={(e) => editTodayActivity(item, Number(e.target.value))}
                       value=""
                     >
@@ -680,7 +680,7 @@ export default function PlantGrowthTracker() {
                       ))}
                     </select>
                     <button 
-                      className="btn-icon" 
+                      className="btn-icon btn-icon-small" 
                       onClick={() => removeTodayActivity(item)}
                       title="Odstrani"
                     >
