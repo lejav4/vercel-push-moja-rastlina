@@ -185,6 +185,15 @@ body { font-size: var(--fz-md); }
   background: #f0fdf4;
   border-color: #22c55e;
   color: #166534;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  border: 1px solid #22c55e;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 400;
 }
 
 .activity-actions {

@@ -269,7 +269,6 @@ export default function PlantGrowthTracker() {
     setRunPoints(rp => Math.min(maxRunPoints, rp + add));
     const today = new Date().toDateString();
     setLastActiveDate(today);
-    setCompletedToday([...completedToday, id]);
     setTodayPoints(prev => prev + activityPoints); // Dodaj točke za današnji dan
 
     const activity = activities.find(a => a.id === id);
@@ -632,9 +631,7 @@ export default function PlantGrowthTracker() {
           )}
 
           <div className="grid">
-            {activities
-              .filter(a => !completedToday.includes(a.id))
-              .map(a => (
+            {activities.map(a => (
                 <div key={a.id} className="activity-row">
                   <button
                     className="activity"
