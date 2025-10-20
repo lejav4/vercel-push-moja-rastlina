@@ -52,6 +52,7 @@ export default function PlantGrowthTracker() {
     { id: 2, text: '🚶 Sprehod 30min', points: 2, isCustom: false },
     { id: 3, text: '🏃 Tek 20min', points: 3, isCustom: false },
     { id: 4, text: '💪 Vadba doma', points: 2, isCustom: false },
+    { id: 5, text: '🏆 Tekmovanje', points: 3, isCustom: false },
     { id: 6, text: '🏋️ Trening', points: 3, isCustom: false },
     { id: 7, text: '🤸 Telovadba', points: 2, isCustom: false },
     { id: 8, text: '💃 Plesne', points: 2, isCustom: false },
@@ -126,10 +127,16 @@ export default function PlantGrowthTracker() {
       const mon = new Date(2025, 9, 13).toDateString(); // months 0-based, 9 = October
       const tue = new Date(2025, 9, 14).toDateString();
       const wed = new Date(2025, 9, 15).toDateString();
+      const fri = new Date(2025, 9, 17).toDateString(); // 17. okt: sprehod 15 min (1)
+      const sat = new Date(2025, 9, 18).toDateString(); // 18. okt: tekmovanje (3)
+      const sun = new Date(2025, 9, 19).toDateString(); // 19. okt: sprehod 30 min (2)
       setActivityHistory({
         [mon]: { total: 2, items: ['Telovadba'] },
         [tue]: { total: 1, items: ['Sprehod 15min'] },
         [wed]: { total: 3, items: ['Trening'] },
+        [fri]: { total: 1, items: ['Sprehod 15min'] },
+        [sat]: { total: 3, items: ['Tekmovanje'] },
+        [sun]: { total: 2, items: ['Sprehod 30min'] },
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
