@@ -192,7 +192,7 @@ body { font-size: var(--fz-md); }
   padding: 0 16px;
   border: 1px solid #22c55e;
   border-radius: 12px;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 400;
 }
 
@@ -237,13 +237,13 @@ body { font-size: var(--fz-md); }
 }
 
 .btn-confirm {
-  background: #f0fdf4;
-  color: #22c55e;
+  background: #22c55e;
+  color: #ffffff;
   border: 1px solid #22c55e;
 }
 
 .btn-confirm:hover {
-  background: #dcfce7;
+  background: #16a34a;
 }
 
 @media (max-width: 640px) {
@@ -259,14 +259,8 @@ body { font-size: var(--fz-md); }
     padding: 4px;
   }
   
-  .activity-row {
-    flex-direction: column;
-    gap: 8px;
-    align-items: stretch;
-  }
-  
   .activity-actions {
-    justify-content: flex-start;
+    gap: 4px;
   }
 }
 
