@@ -236,15 +236,15 @@ body { font-size: var(--fz-md); }
   justify-content: center;
 }
 
-.btn-confirm {
-  background: #dcfce7;
-  color: #16a34a;
+.btn-icon.btn-confirm {
+  background: #dcfce7; /* light green */
+  color: #16a34a;      /* dark green icon */
   border: 1px solid #22c55e;
 }
 
-.btn-confirm:hover {
-  background: #16a34a;
-  color: #ffffff;
+.btn-icon.btn-confirm:hover {
+  background: #16a34a; /* dark green */
+  color: #ffffff;       /* white icon */
 }
 
 @media (max-width: 640px) {
