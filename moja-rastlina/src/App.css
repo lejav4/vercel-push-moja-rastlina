@@ -181,6 +181,27 @@ body { font-size: var(--fz-md); }
 @media (max-width: 640px) { .activity-text { font-size: 14px; } }
 .activity-points { color: #059669; font-weight: 700; }
 
+.activity.completed {
+  background: #f0fdf4;
+  border-color: #22c55e;
+  color: #166534;
+}
+
+.activity-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.select-small {
+  padding: 4px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+  font-size: 12px;
+  min-width: 80px;
+}
+
 .btn-icon {
   background: #fff1f2;
   color: #ef4444;

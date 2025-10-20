@@ -44,8 +44,12 @@ export default function PlantGrowthTracker() {
   const [hasCompletedRun, setHasCompletedRun] = useState(false);
   const [allowDeleteActivities, setAllowDeleteActivities] = useState(true);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const [todayPoints, setTodayPoints] = useState(0); // točke za današnji dan
+  const [lastActivityDate, setLastActivityDate] = useState<string>(''); // zadnji dan z aktivnostjo
 
   const STORAGE_ACTIVITIES = 'mr_activities_v1';
+  const STORAGE_ACTIVITY_HISTORY = 'mr_activity_history_v1';
+  const STORAGE_LAST_ACTIVITY_DATE = 'mr_last_activity_date_v1';
 
   const [activities, setActivities] = useState<ActivityType[]>([
     { id: 1, text: '🚶 Sprehod 15min', points: 1, isCustom: false },
@@ -77,12 +81,53 @@ export default function PlantGrowthTracker() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Hydrate activity history from localStorage
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_ACTIVITY_HISTORY);
+      if (raw) {
+        const parsed: Record<string, DayActivity> = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') {
+          setActivityHistory(parsed);
+        }
+      }
+    } catch (e) {
+      // ignore corrupt storage
+    }
+  }, []);
+
+  // Hydrate last activity date from localStorage
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_LAST_ACTIVITY_DATE);
+      if (raw) {
+        setLastActivityDate(raw);
+      }
+    } catch (e) {
+      // ignore corrupt storage
+    }
+  }, []);
+
   // Persist activities whenever they change
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_ACTIVITIES, JSON.stringify(activities));
     } catch {}
   }, [activities]);
+
+  // Persist activity history whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_ACTIVITY_HISTORY, JSON.stringify(activityHistory));
+    } catch {}
+  }, [activityHistory]);
+
+  // Persist last activity date whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_LAST_ACTIVITY_DATE, lastActivityDate);
+    } catch {}
+  }, [lastActivityDate]);
 
   const plants: PlantType[] = [
     // Vrtnica: uporabi uvožene slike za prve 3 nivoje
@@ -159,6 +204,26 @@ export default function PlantGrowthTracker() {
     }
   }, [lastActiveDate, points]);
 
+  // Dnevni sistem kazni: vsak dan brez aktivnosti = -1 točka
+  useEffect(() => {
+    const today = new Date().toDateString();
+    const hasActivityToday = activityHistory[today] && activityHistory[today].total > 0;
+    
+    if (!hasActivityToday && lastActivityDate && lastActivityDate !== today) {
+      // Preveri, ali je bil včeraj aktivnost
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toDateString();
+      const hadActivityYesterday = activityHistory[yesterdayStr] && activityHistory[yesterdayStr].total > 0;
+      
+      if (!hadActivityYesterday) {
+        // Včeraj ni bilo aktivnosti, odštej točko
+        setPoints(prev => Math.max(0, prev - 1));
+        setLastActivityDate(today); // Posodobi zadnji aktivni dan
+      }
+    }
+  }, [activityHistory, lastActivityDate]);
+
   useEffect(() => {
     // napredovanje po nivojih dokler ne končamo
     if (points >= pointsToNextLevel && !hasCompletedRun) {
@@ -205,6 +270,7 @@ export default function PlantGrowthTracker() {
     const today = new Date().toDateString();
     setLastActiveDate(today);
     setCompletedToday([...completedToday, id]);
+    setTodayPoints(prev => prev + activityPoints); // Dodaj točke za današnji dan
 
     const activity = activities.find(a => a.id === id);
     const prev = activityHistory[today] || { total: 0, items: [] };
@@ -231,6 +297,65 @@ export default function PlantGrowthTracker() {
   const deleteActivity = (id: number) => {
     setActivities(activities.filter(a => a.id !== id));
     setCompletedToday(completedToday.filter(cid => cid !== id));
+  };
+
+  // Uredi aktivnost za današnji dan
+  const editTodayActivity = (oldActivityName: string, newActivityId: number) => {
+    const today = new Date().toDateString();
+    const todayHistory = activityHistory[today];
+    if (!todayHistory) return;
+
+    const newActivity = activities.find(a => a.id === newActivityId);
+    if (!newActivity) return;
+
+    // Odstrani staro aktivnost
+    const updatedItems = todayHistory.items.filter(item => item !== oldActivityName);
+    const oldActivity = activities.find(a => a.text.replace(/^\S+\s/, '') === oldActivityName);
+    const oldPoints = oldActivity ? oldActivity.points : 0;
+    
+    // Dodaj novo aktivnost
+    const newActivityName = newActivity.text.replace(/^\S+\s/, '');
+    const newTotal = todayHistory.total - oldPoints + newActivity.points;
+    
+    setActivityHistory({
+      ...activityHistory,
+      [today]: {
+        total: newTotal,
+        items: [...updatedItems, newActivityName]
+      }
+    });
+
+    // Posodobi točke
+    const pointDiff = newActivity.points - oldPoints;
+    setPoints(prev => prev + pointDiff);
+    setRunPoints(prev => Math.min(maxRunPoints, prev + pointDiff));
+    setTodayPoints(prev => prev + pointDiff);
+  };
+
+  // Odstrani aktivnost za današnji dan
+  const removeTodayActivity = (activityName: string) => {
+    const today = new Date().toDateString();
+    const todayHistory = activityHistory[today];
+    if (!todayHistory) return;
+
+    const activity = activities.find(a => a.text.replace(/^\S+\s/, '') === activityName);
+    if (!activity) return;
+
+    const updatedItems = todayHistory.items.filter(item => item !== activityName);
+    const newTotal = todayHistory.total - activity.points;
+    
+    setActivityHistory({
+      ...activityHistory,
+      [today]: {
+        total: newTotal,
+        items: updatedItems
+      }
+    });
+
+    // Odštej točke
+    setPoints(prev => Math.max(0, prev - activity.points));
+    setRunPoints(prev => Math.max(0, prev - activity.points));
+    setTodayPoints(prev => Math.max(0, prev - activity.points));
   };
 
   const resetPlantCompletion = (plantId: string) => {
@@ -527,6 +652,46 @@ export default function PlantGrowthTracker() {
               ))}
           </div>
         </section>
+
+        {/* Today's completed activities */}
+        {activityHistory[new Date().toDateString()] && activityHistory[new Date().toDateString()].items.length > 0 && (
+          <section className="card">
+            <div className="section-title">
+              <span>✅ Dokončane danes ({todayPoints} točk)</span>
+            </div>
+            <div className="grid">
+              {activityHistory[new Date().toDateString()].items.map((item, index) => (
+                <div key={index} className="activity-row">
+                  <div className="activity completed">
+                    <div className="activity-text">{item}</div>
+                    <div className="activity-points">
+                      +{activities.find(a => a.text.replace(/^\S+\s/, '') === item)?.points || 0}
+                    </div>
+                  </div>
+                  <div className="activity-actions">
+                    <select 
+                      className="select-small" 
+                      onChange={(e) => editTodayActivity(item, Number(e.target.value))}
+                      value=""
+                    >
+                      <option value="">Uredi</option>
+                      {activities.map(a => (
+                        <option key={a.id} value={a.id}>{a.text}</option>
+                      ))}
+                    </select>
+                    <button 
+                      className="btn-icon" 
+                      onClick={() => removeTodayActivity(item)}
+                      title="Odstrani"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Congrats modal */}
         {showCongrats && (
