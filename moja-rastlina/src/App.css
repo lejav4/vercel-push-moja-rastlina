@@ -200,6 +200,13 @@ body { font-size: var(--fz-md); }
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .activity-actions {
+    gap: 4px;
+  }
 }
 
 .activity-select {
@@ -227,6 +234,40 @@ body { font-size: var(--fz-md); }
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.btn-confirm {
+  background: #f0fdf4;
+  color: #22c55e;
+  border: 1px solid #22c55e;
+}
+
+.btn-confirm:hover {
+  background: #dcfce7;
+}
+
+@media (max-width: 640px) {
+  .activity-select {
+    font-size: 12px;
+    padding: 6px 8px;
+    min-width: 100px;
+  }
+  
+  .btn-icon-small {
+    height: 28px;
+    width: 28px;
+    padding: 4px;
+  }
+  
+  .activity-row {
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+  }
+  
+  .activity-actions {
+    justify-content: flex-start;
+  }
 }
 
 .btn-icon {

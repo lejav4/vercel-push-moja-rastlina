@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Sprout, Activity as ActivityIcon, TrendingUp, ArrowRight, Settings as SettingsIcon, RotateCcw } from 'lucide-react';
+import { Plus, Trash2, Sprout, Activity as ActivityIcon, TrendingUp, ArrowRight, Settings as SettingsIcon, RotateCcw, Check } from 'lucide-react';
 import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import roseL1 from './assets/rose-l1.png';
 import roseL2 from './assets/rose-l2.png';
@@ -357,6 +357,14 @@ export default function PlantGrowthTracker() {
     setTodayPoints(prev => Math.max(0, prev - activity.points));
   };
 
+  // Potrdi aktivnost za današnji dan (dodaj v completedToday)
+  const confirmTodayActivity = (activityName: string) => {
+    const activity = activities.find(a => a.text.replace(/^\S+\s/, '') === activityName);
+    if (!activity) return;
+    
+    setCompletedToday(prev => [...prev, activity.id]);
+  };
+
   const resetPlantCompletion = (plantId: string) => {
     // Ponastavi števec in ponovno zaženi cikel izbrane rastline
     setPlantCompletions(prev => ({ ...prev, [plantId]: 0 }));
@@ -676,6 +684,13 @@ export default function PlantGrowthTracker() {
                         <option key={a.id} value={a.id}>{a.text}</option>
                       ))}
                     </select>
+                    <button 
+                      className="btn-icon btn-icon-small btn-confirm" 
+                      onClick={() => confirmTodayActivity(item)}
+                      title="Potrdi"
+                    >
+                      <Check size={16} />
+                    </button>
                     <button 
                       className="btn-icon btn-icon-small" 
                       onClick={() => removeTodayActivity(item)}
