@@ -237,20 +237,22 @@ body { font-size: var(--fz-md); }
 }
 
 .btn-confirm {
-  background: #22c55e;
-  color: #ffffff;
+  background: #dcfce7;
+  color: #16a34a;
   border: 1px solid #22c55e;
 }
 
 .btn-confirm:hover {
   background: #16a34a;
+  color: #ffffff;
 }
 
 @media (max-width: 640px) {
   .activity-select {
     font-size: 12px;
     padding: 6px 8px;
-    min-width: 100px;
+    min-width: 80px;
+    max-width: 100px;
   }
   
   .btn-icon-small {
@@ -261,6 +263,10 @@ body { font-size: var(--fz-md); }
   
   .activity-actions {
     gap: 4px;
+  }
+  
+  .activity.completed .activity-points {
+    display: none;
   }
 }
 
