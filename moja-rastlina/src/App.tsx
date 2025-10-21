@@ -474,6 +474,44 @@ export default function PlantGrowthTracker() {
 
   const getPlantSize = () => Math.min(200, 80 + level * 2);
 
+  // Helper function to get the current plant stage image source
+  const getCurrentPlantStageSrc = (): string | null => {
+    const stages = currentPlant.emoji;
+
+    // If plant is completed, show the final celebratory stage if provided
+    if (level > currentPlant.levels || completedPlants.includes(selectedPlant) || runPoints >= maxRunPoints) {
+      const fin = currentPlant.final ?? stages[stages.length - 1];
+      if (typeof fin === 'string' && fin.startsWith('img:')) {
+        return fin.replace('img:', '');
+      }
+      return null;
+    }
+
+    // If the first N stages are explicit images, map level 1..N directly to those images
+    const imageStagesCount = stages.filter(s => typeof s === 'string' && (s as string).startsWith('img:')).length;
+    if (level <= imageStagesCount) {
+      const directStage = stages[level - 1];
+      if (typeof directStage === 'string' && directStage.startsWith('img:')) {
+        return directStage.replace('img:', '');
+      }
+      return null;
+    }
+
+    // Distribute remaining levels across remaining stages
+    const remainingStages = stages.slice(imageStagesCount);
+    const remainingStageCount = remainingStages.length;
+    const levelsRemaining = Math.max(1, currentPlant.levels - imageStagesCount);
+    const idxWithin = Math.min(
+      Math.floor((level - imageStagesCount - 1) / Math.max(1, levelsRemaining / remainingStageCount)),
+      remainingStageCount - 1
+    );
+    const stage = remainingStages[idxWithin];
+    if (typeof stage === 'string' && stage.startsWith('img:')) {
+      return stage.replace('img:', '');
+    }
+    return null;
+  };
+
   // Graf funkcije
   const getLast30Days = () => {
     const days: string[] = [];
@@ -744,13 +782,14 @@ export default function PlantGrowthTracker() {
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
                 <div>
                   {(() => {
+                    const currentStageSrc = getCurrentPlantStageSrc();
+                    if (currentStageSrc) {
+                      return <img src={currentStageSrc} alt="final" className="plant-img" />;
+                    }
+                    // Fallback to emoji if no image
                     const plant = plants.find(p => p.id === selectedPlant);
                     if (!plant) return null;
                     const fin = plant.final ?? plant.emoji[plant.emoji.length - 1];
-                    if (typeof fin === 'string' && fin.startsWith('img:')) {
-                      const src = fin.replace('img:', '');
-                      return <img src={src} alt="final" className="plant-img" />;
-                    }
                     return <span style={{ fontSize: 64 }}>{fin as unknown as string}</span>;
                   })()}
                 </div>
