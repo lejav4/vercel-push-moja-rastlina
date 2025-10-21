@@ -58,6 +58,7 @@ export default function PlantGrowthTracker() {
   const STORAGE_ACTIVITIES = 'mr_activities_v1';
   const STORAGE_ACTIVITY_HISTORY = 'mr_activity_history_v1';
   const STORAGE_LAST_ACTIVITY_DATE = 'mr_last_activity_date_v1';
+  const STORAGE_SELECTED_PLANT = 'mr_selected_plant_v1';
 
   const [activities, setActivities] = useState<ActivityType[]>([
     { id: 1, text: '🚶 Sprehod 15min', points: 1, isCustom: false },
@@ -116,6 +117,18 @@ export default function PlantGrowthTracker() {
     }
   }, []);
 
+  // Hydrate selected plant from localStorage
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_SELECTED_PLANT);
+      if (raw) {
+        setSelectedPlant(raw);
+      }
+    } catch (e) {
+      // ignore corrupt storage
+    }
+  }, []);
+
   // Persist activities whenever they change
   useEffect(() => {
     try {
@@ -136,6 +149,13 @@ export default function PlantGrowthTracker() {
       localStorage.setItem(STORAGE_LAST_ACTIVITY_DATE, lastActivityDate);
     } catch {}
   }, [lastActivityDate]);
+
+  // Persist selected plant whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_SELECTED_PLANT, selectedPlant);
+    } catch {}
+  }, [selectedPlant]);
 
   const plants: PlantType[] = [
     // Vrtnica: uporabi uvožene slike za prve 3 nivoje
@@ -401,7 +421,6 @@ export default function PlantGrowthTracker() {
   };
 
   const changePlant = (plantId: string) => {
-    console.log('changePlant called with:', plantId);
     setSelectedPlant(plantId);
     setLevel(1);
     setPoints(0);
@@ -726,14 +745,10 @@ export default function PlantGrowthTracker() {
                 <div>
                   {(() => {
                     const plant = plants.find(p => p.id === selectedPlant);
-                    console.log('Congrats modal - selectedPlant:', selectedPlant);
-                    console.log('Congrats modal - found plant:', plant);
                     if (!plant) return null;
                     const fin = plant.final ?? plant.emoji[plant.emoji.length - 1];
-                    console.log('Congrats modal - final image:', fin);
                     if (typeof fin === 'string' && fin.startsWith('img:')) {
                       const src = fin.replace('img:', '');
-                      console.log('Congrats modal - image src:', src);
                       return <img src={src} alt="final" className="plant-img" />;
                     }
                     return <span style={{ fontSize: 64 }}>{fin as unknown as string}</span>;
