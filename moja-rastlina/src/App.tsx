@@ -512,6 +512,23 @@ export default function PlantGrowthTracker() {
     return null;
   };
 
+  // Helper function to render plant emoji/image for selection modal
+  const renderPlantEmoji = (plant: PlantType): React.ReactNode => {
+    // For plants with all image stages, show the emoji from the plant name instead
+    if (plant.id === 'sunflower' || plant.id === 'rose') {
+      // Extract emoji from plant name (e.g., "🌻 Sončnica" -> "🌻")
+      const nameEmoji = plant.name.split(' ')[0];
+      return <span style={{ fontSize: 24 }}>{nameEmoji}</span>;
+    }
+    
+    const lastStage = plant.emoji[plant.emoji.length - 1];
+    if (typeof lastStage === 'string' && lastStage.startsWith('img:')) {
+      const src = lastStage.replace('img:', '');
+      return <img src={src} alt="plant" style={{ width: 32, height: 32, objectFit: 'contain' }} />;
+    }
+    return <span style={{ fontSize: 24 }}>{lastStage as unknown as string}</span>;
+  };
+
   // Graf funkcije
   const getLast30Days = () => {
     const days: string[] = [];
@@ -905,9 +922,19 @@ export default function PlantGrowthTracker() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
                 <div>
-                  <img src={roseFinal} alt="final" className="plant-img" />
+                  {(() => {
+                    const currentStageSrc = getCurrentPlantStageSrc();
+                    if (currentStageSrc) {
+                      return <img src={currentStageSrc} alt="final" className="plant-img" />;
+                    }
+                    // Fallback to emoji if no image
+                    const plant = plants.find(p => p.id === selectedPlant);
+                    if (!plant) return null;
+                    const fin = plant.final ?? plant.emoji[plant.emoji.length - 1];
+                    return <span style={{ fontSize: 64 }}>{fin as unknown as string}</span>;
+                  })()}
                 </div>
-                <p style={{ textAlign: 'center' }}>Uspešno si dokončal/a svojo {plantCompletions[selectedPlant] || 1} {currentPlant.id === 'rose' ? 'vrtnico' : 'rastlino'}.</p>
+                <p style={{ textAlign: 'center' }}>Uspešno si dokončal/a svojo {plantCompletions[selectedPlant] || 1} {currentPlant.name}.</p>
               </div>
               <div style={{ display: 'flex', gap: 12, marginTop: 12, justifyContent: 'center' }}>
                 <button type="button" className="btn-change btn-40" onClick={() => {
@@ -942,7 +969,7 @@ export default function PlantGrowthTracker() {
                     onClick={() => changePlant(p.id)}
                   >
                     <div className="plant-item-left">
-                      <span className="plant-emoji">{p.emoji[p.emoji.length - 1]}</span>
+                      <span className="plant-emoji">{renderPlantEmoji(p)}</span>
                       <div>
                         <div className="plant-name">{p.name}</div>
                         <div className="plant-sub">{p.months} mese{p.months === 1 ? 'c' : 'ca'} aktivnosti <span style={{ color: '#7c3aed' }}>• {Array((plantCompletions[p.id] || 0)).fill('★').join('')}</span></div>
