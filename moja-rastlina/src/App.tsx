@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Sprout, Activity as ActivityIcon, TrendingUp, ArrowRight, Settings as SettingsIcon, RotateCcw, Check } from 'lucide-react';
 import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
-// Plant images
+import './App.css';
+
+// Plant images - using require to avoid import issues
 const roseL1 = require('./assets/rose-l1.png');
 const roseL2 = require('./assets/rose-l2.png');
 const roseL3 = require('./assets/rose-l3.png');
@@ -12,7 +14,6 @@ const sunflowerL3 = require('./assets/sunflower-l3.png');
 const sunflowerL4 = require('./assets/sunflower-l4.png');
 const sunflowerL5 = require('./assets/sunflower-l5.png');
 const sunflowerFinal = require('./assets/sunflower-final.png');
-import './App.css';
 
 type ActivityType = {
   id: number;
