@@ -401,6 +401,7 @@ export default function PlantGrowthTracker() {
   };
 
   const changePlant = (plantId: string) => {
+    console.log('changePlant called with:', plantId);
     setSelectedPlant(plantId);
     setLevel(1);
     setPoints(0);
@@ -725,10 +726,14 @@ export default function PlantGrowthTracker() {
                 <div>
                   {(() => {
                     const plant = plants.find(p => p.id === selectedPlant);
+                    console.log('Congrats modal - selectedPlant:', selectedPlant);
+                    console.log('Congrats modal - found plant:', plant);
                     if (!plant) return null;
                     const fin = plant.final ?? plant.emoji[plant.emoji.length - 1];
+                    console.log('Congrats modal - final image:', fin);
                     if (typeof fin === 'string' && fin.startsWith('img:')) {
                       const src = fin.replace('img:', '');
+                      console.log('Congrats modal - image src:', src);
                       return <img src={src} alt="final" className="plant-img" />;
                     }
                     return <span style={{ fontSize: 64 }}>{fin as unknown as string}</span>;
