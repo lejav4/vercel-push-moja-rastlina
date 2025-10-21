@@ -724,7 +724,9 @@ export default function PlantGrowthTracker() {
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
                 <div>
                   {(() => {
-                    const fin = currentPlant.final ?? currentPlant.emoji[currentPlant.emoji.length - 1];
+                    const plant = plants.find(p => p.id === selectedPlant);
+                    if (!plant) return null;
+                    const fin = plant.final ?? plant.emoji[plant.emoji.length - 1];
                     if (typeof fin === 'string' && fin.startsWith('img:')) {
                       const src = fin.replace('img:', '');
                       return <img src={src} alt="final" className="plant-img" />;
@@ -732,7 +734,7 @@ export default function PlantGrowthTracker() {
                     return <span style={{ fontSize: 64 }}>{fin as unknown as string}</span>;
                   })()}
                 </div>
-                <p style={{ textAlign: 'center' }}>Uspešno si dokončal/a rastlino {currentPlant.name}. Dokončanja: {plantCompletions[selectedPlant] || 1}</p>
+                <p style={{ textAlign: 'center' }}>Uspešno si dokončal/a rastlino {plants.find(p => p.id === selectedPlant)?.name}. Dokončanja: {plantCompletions[selectedPlant] || 1}</p>
               </div>
               <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
                 <button className="btn-primary btn-40" onClick={() => setShowCongrats(false)}>Zapri</button>
