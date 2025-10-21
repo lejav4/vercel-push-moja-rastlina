@@ -5,6 +5,12 @@ import roseL1 from './assets/rose-l1.png';
 import roseL2 from './assets/rose-l2.png';
 import roseL3 from './assets/rose-l3.png';
 import roseFinal from './assets/rose-final.png';
+import sunflowerL1 from './assets/sunflower-l1.png';
+import sunflowerL2 from './assets/sunflower-l2.png';
+import sunflowerL3 from './assets/sunflower-l3.png';
+import sunflowerL4 from './assets/sunflower-l4.png';
+import sunflowerL5 from './assets/sunflower-l5.png';
+import sunflowerFinal from './assets/sunflower-final.png';
 import './App.css';
 
 type ActivityType = {
@@ -132,7 +138,7 @@ export default function PlantGrowthTracker() {
   const plants: PlantType[] = [
     // Vrtnica: uporabi uvožene slike za prve 3 nivoje
     { id: 'rose', name: '🌹 Vrtnica', months: 1, levels: 30, emoji: [`img:${roseL1}`, `img:${roseL2}`, `img:${roseL3}`, '🌺', '🌹'], final: `img:${roseFinal}` },
-    { id: 'sunflower', name: '🌻 Sončnica', months: 2, levels: 60, emoji: ['🌱', '🌿', '🪴', '🌼', '🌻'], final: '🌻' },
+    { id: 'sunflower', name: '🌻 Sončnica', months: 2, levels: 60, emoji: [`img:${sunflowerL1}`, `img:${sunflowerL2}`, `img:${sunflowerL3}`, `img:${sunflowerL4}`, `img:${sunflowerL5}`], final: `img:${sunflowerFinal}` },
     { id: 'tree', name: '🌳 Drevo', months: 3, levels: 90, emoji: ['🌱', '🌿', '🪴', '🌲', '🌳'], final: '🌳' },
     { id: 'sakura', name: '🌸 Češnja', months: 4, levels: 120, emoji: ['🌱', '🌿', '🪴', '🌺', '🌸'], final: '🌸' },
     { id: 'garden', name: '🏡 Cel Vrt', months: 6, levels: 180, emoji: ['🌱', '🌿', '🪴', '🌳', '🏡'], final: '🏡' },
