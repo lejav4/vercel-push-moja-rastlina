@@ -5,13 +5,12 @@ import roseL1 from './assets/rose-l1.png';
 import roseL2 from './assets/rose-l2.png';
 import roseL3 from './assets/rose-l3.png';
 import roseFinal from './assets/rose-final.png';
-// Sunflower images
-const sunflowerL1 = require('./assets/sunflower-l1.png');
-const sunflowerL2 = require('./assets/sunflower-l2.png');
-const sunflowerL3 = require('./assets/sunflower-l3.png');
-const sunflowerL4 = require('./assets/sunflower-l4.png');
-const sunflowerL5 = require('./assets/sunflower-l5.png');
-const sunflowerFinal = require('./assets/sunflower-final.png');
+import sunflowerL1 from './assets/sunflower-l1.png';
+import sunflowerL2 from './assets/sunflower-l2.png';
+import sunflowerL3 from './assets/sunflower-l3.png';
+import sunflowerL4 from './assets/sunflower-l4.png';
+import sunflowerL5 from './assets/sunflower-l5.png';
+import sunflowerFinal from './assets/sunflower-final.png';
 import './App.css';
 
 type ActivityType = {
