@@ -258,15 +258,6 @@ export default function PlantGrowthTracker() {
         }
       setPlantCompletions(prev => ({ ...prev, [selectedPlant]: (prev[selectedPlant] || 0) + 1 }));
       setShowCongrats(true);
-      
-      // Avtomatsko preklopi na naslednjo rastlino po zaključku
-      if (selectedPlant === 'rose') {
-        setSelectedPlant('sunflower');
-        setLevel(1);
-        setPoints(0);
-        setRunPoints(0);
-        setHasCompletedRun(false);
-      }
     }
   }, [runPoints, maxRunPoints, level, currentPlant, hasCompletedRun, completedPlants, selectedPlant]);
 
