@@ -353,30 +353,7 @@ export default function PlantGrowthTracker() {
     } catch {}
   }, [activityHistory]);
 
-  // TEMP: Seed last 10 days with sample running data (Tek) for demo/testing
-  useEffect(() => {
-    try {
-      const already = localStorage.getItem(STORAGE_TEMP_SEED_10D_DONE);
-      if (already) return;
-      const raw = localStorage.getItem(STORAGE_ACTIVITY_HISTORY) || '{}';
-      const hist: Record<string, { total: number; items: string[] }> = JSON.parse(raw) || {};
-      for (let i = 9; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        const key = d.toDateString();
-        // vary points 1..3
-        const pts = ((i % 3) + 1);
-        hist[key] = { total: pts, items: ['Tek 20min'] };
-      }
-      localStorage.setItem(STORAGE_ACTIVITY_HISTORY, JSON.stringify(hist));
-      setActivityHistory(hist);
-      // ensure start date exists
-      if (!localStorage.getItem(STORAGE_START_DATE)) {
-        localStorage.setItem(STORAGE_START_DATE, new Date().toDateString());
-      }
-      localStorage.setItem(STORAGE_TEMP_SEED_10D_DONE, '1');
-    } catch {}
-  }, []);
+  // (Removed) Seed demo data - no longer seeding demo data, app starts with empty history
 
   // Persist last activity date whenever it changes
   useEffect(() => {
