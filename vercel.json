@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "framework": "create-react-app",
+  "installCommand": "cd \"Moja Rastlina/moja-rastlina\" && (npm ci || npm install)",
+  "buildCommand": "cd \"Moja Rastlina/moja-rastlina\" && npm run build",
+  "outputDirectory": "Moja Rastlina/moja-rastlina/build",
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ]
+}
+
+
