@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Plus, Trash2, Sprout, Activity as ActivityIcon, TrendingUp, Settings as SettingsIcon, RotateCcw, Check, BarChart3, Zap, Calendar as CalendarIcon } from 'lucide-react';
 import Calendar from './components/ui/calendar';
 import { Button } from './components/ui/button';
@@ -131,6 +131,7 @@ export default function PlantGrowthTracker() {
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [enableActivitySuggestions, setEnableActivitySuggestions] = useState(false);
   const plantStageRef = useRef<HTMLDivElement>(null);
+  const lastClickRef = useRef<{ id: number | null; timestamp: number }>({ id: null, timestamp: 0 });
   const [customActivityDate, setCustomActivityDate] = useState<string>(() => {
     const d = new Date();
     const iso = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())).toISOString().slice(0,10);
@@ -146,12 +147,21 @@ export default function PlantGrowthTracker() {
       return raw ? JSON.parse(raw) : {};
     } catch { return {}; }
   });
+  // Shrani datum po imenu aktivnosti (namesto po indeksu), da se pravilno resetira ob dodajanju nove aktivnosti
+  const [pendingDatesByActivity, setPendingDatesByActivity] = useState<Record<string, string>>(() => {
+    try {
+      const raw = localStorage.getItem('mr_pending_dates_by_activity_v1');
+      return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+  });
   const [confirmedByDate, setConfirmedByDate] = useState<Record<string, string[]>>(() => {
     try {
       const raw = localStorage.getItem('mr_confirmed_by_date_v1');
       return raw ? JSON.parse(raw) : {};
     } catch { return {}; }
   });
+  // Začasni seznam aktivnosti za današnji dan, ki čakajo na potrditev (ne gre v activityHistory do potrditve)
+  const [pendingActivitiesToday, setPendingActivitiesToday] = useState<string[]>([]);
 
   const STORAGE_ACTIVITIES = 'mr_activities_v1';
   const STORAGE_ACTIVITY_HISTORY = 'mr_activity_history_v1';
@@ -399,12 +409,13 @@ export default function PlantGrowthTracker() {
   const maxRunPoints = currentPlant.months * 30; // npr. Vrtnica: 30
   const progress = (points / pointsToNextLevel) * 100;
 
-  // Preveri nov dan in resetiraj completedToday (potrjene hranimo v localStorage po datumih)
+  // Preveri nov dan in resetiraj completedToday in pendingActivitiesToday (potrjene hranimo v localStorage po datumih)
   useEffect(() => {
     const today = new Date().toDateString();
     if (today !== currentDate) {
       setCurrentDate(today);
       setCompletedToday([]);
+      setPendingActivitiesToday([]); // Resetiraj začasni seznam ob novem dnevu
     }
   }, [currentDate]);
 
@@ -415,6 +426,9 @@ export default function PlantGrowthTracker() {
   useEffect(() => {
     try { localStorage.setItem('mr_confirmed_by_date_v1', JSON.stringify(confirmedByDate)); } catch {}
   }, [confirmedByDate]);
+  useEffect(() => {
+    try { localStorage.setItem('mr_pending_dates_by_activity_v1', JSON.stringify(pendingDatesByActivity)); } catch {}
+  }, [pendingDatesByActivity]);
 
   // (Removed) test helper for adding points via keyboard
 
@@ -594,11 +608,50 @@ export default function PlantGrowthTracker() {
     setActivityHistory(updated);
     setTodayPoints(0);
     setCompletedToday([]);
+    setPendingActivitiesToday([]); // Počisti tudi začasni seznam
     setConfirmedByDate(prev => {
       const next = { ...prev } as Record<string, string[]>;
       delete next[today];
       return next;
     });
+  };
+
+  // Resetiraj VSE vnose aktivnosti (pobriše vso zgodovino aktivnosti in vse točke)
+  const resetAllActivityEntries = () => {
+    if (!window.confirm('Ali ste prepričani, da želite izbrisati vso zgodovino aktivnosti in vse pridobljene točke? To dejanje ni mogoče razveljaviti.')) {
+      return;
+    }
+    // Počisti vse localStorage podatke za aktivnosti
+    try {
+      localStorage.removeItem(STORAGE_ACTIVITY_HISTORY);
+      localStorage.removeItem('mr_pending_dates_v1');
+      localStorage.removeItem('mr_pending_dates_by_activity_v1');
+      localStorage.removeItem('mr_confirmed_by_date_v1');
+      localStorage.removeItem(STORAGE_LAST_ACTIVITY_DATE);
+      localStorage.removeItem(STORAGE_START_DATE);
+      localStorage.removeItem(STORAGE_TEMP_SEED_10D_DONE);
+    } catch {}
+    // Resetiraj vse state za aktivnosti
+    setActivityHistory({});
+    setTodayPoints(0);
+    setCompletedToday([]);
+    setPendingActivitiesToday([]);
+    setPendingDates({});
+    setPendingDatesByActivity({});
+    setConfirmedByDate({});
+    setLastActivityDate('');
+    setStartDate(null);
+    // Resetiraj vse točke in napredek
+    setLevel(1);
+    setPoints(0);
+    setRunPoints(0);
+    setHasCompletedRun(false);
+    setCompletedPlants([]);
+    setPlantCompletions({});
+    setLastActiveDate(new Date().toDateString());
+    // Zapri nastavitve po resetiranju
+    setShowSettingsMenu(false);
+    alert('Vsi vnosi aktivnosti in vse pridobljene točke so bili izbrisani.');
   };
 
   // URL helper: ?resetToday=1 ponastavi današnje vnose ob osvežitvi strani
@@ -607,6 +660,12 @@ export default function PlantGrowthTracker() {
       const params = new URLSearchParams(window.location.search);
       if (params.get('resetToday') === '1') {
         resetTodayEntries();
+        const cleanUrl = window.location.origin + window.location.pathname;
+        window.history.replaceState({}, '', cleanUrl);
+      }
+      // Resetiraj vse vnose ob osvežitvi, če je parameter ?resetAll=1
+      if (params.get('resetAll') === '1') {
+        resetAllActivityEntries();
         const cleanUrl = window.location.origin + window.location.pathname;
         window.history.replaceState({}, '', cleanUrl);
       }
@@ -621,22 +680,43 @@ export default function PlantGrowthTracker() {
 
   const completeActivity = (id: number, activityPoints: number) => {
     if (hasCompletedRun || level >= currentPlant.levels || runPoints >= maxRunPoints) return;
+    
+    // Prepreči večkratno dodajanje iste aktivnosti naenkrat (v 500ms)
+    const now = Date.now();
+    if (lastClickRef.current.id === id && now - lastClickRef.current.timestamp < 500) {
+      return; // Prepreči večkratno dodajanje naenkrat
+    }
+    lastClickRef.current = { id, timestamp: now };
+    
     const today = new Date().toDateString();
 
     // Ne dodaj točk takoj – samo zabeleži postavko za današnji dan
     const activity = activities.find(a => a.id === id);
-    const prev = activityHistory[today] || { total: 0, items: [] };
-    const cleanName = activity ? activity.text.replace(/^\S+\s/, '') : 'Aktivnost';
-    // Blokiraj dodajanje, če je enaka aktivnost že dodana (nepotrjena) danes
-    const alreadyPending = prev.items.includes(cleanName) && !((confirmedByDate[today] || []).includes(cleanName));
-    if (alreadyPending) {
-      triggerPlantAnimation('shimmer');
-      return;
-    }
-    setActivityHistory({
-      ...activityHistory,
-      [today]: { total: prev.total, items: [...prev.items, cleanName] },
+    if (!activity) return;
+    
+    const cleanName = activity.text.replace(/^\S+\s/, '');
+    
+    // DODAJ aktivnost le v začasen seznam (pendingActivitiesToday), NE v activityHistory
+    // Aktivnost se doda v activityHistory šele ob potrditvi v confirmTodayActivity
+    setPendingActivitiesToday(prev => [...prev, cleanName]);
+    
+    // Resetiraj datum na današnji dan za novo dodano aktivnost
+    // (če je bila aktivnost že v seznamu z drugim datumom, se resetira na današnji dan)
+    const todayIso = new Date().toISOString().slice(0, 10);
+    setPendingDatesByActivity(prev => {
+      const updated = { ...prev };
+      // Poišči vse aktivnosti z istim imenom in resetiraj njihov datum na današnji dan
+      // Vendar za to specifično aktivnost nastavimo današnji dan
+      updated[cleanName] = todayIso;
+      return updated;
     });
+    
+    // Reset ref po 500ms, da dovolimo ponovno dodajanje zaporedoma
+    setTimeout(() => {
+      if (lastClickRef.current.id === id && Date.now() - lastClickRef.current.timestamp >= 500) {
+        lastClickRef.current = { id: null, timestamp: 0 };
+      }
+    }, 500);
 
     // animacija rasti kot feedback na izbiro
     triggerPlantAnimation('grow');
@@ -752,64 +832,64 @@ export default function PlantGrowthTracker() {
     setTodayPoints(prev => prev + pointDiff);
   };
 
-  // Odstrani aktivnost za današnji dan
+  // Odstrani aktivnost za današnji dan (iz začasnega seznama, ker še ni bila potrjena)
   const removeTodayActivity = (activityName: string) => {
-    const today = new Date().toDateString();
-    const todayHistory = activityHistory[today];
-    if (!todayHistory) return;
-
-    const updatedItems = todayHistory.items.filter(item => item !== activityName);
-    // Ne spreminjaj totalov in točk – brisanje naj se ne pozna na grafu
-    setActivityHistory({
-      ...activityHistory,
-      [today]: {
-        total: todayHistory.total,
-        items: updatedItems
-      }
+    // Odstrani aktivnost iz začasnega seznama (pendingActivitiesToday)
+    // Aktivnost še ni bila potrjena, zato ni v activityHistory
+    setPendingActivitiesToday(prev => prev.filter(item => item !== activityName));
+    // Odstrani tudi datum iz pendingDatesByActivity
+    setPendingDatesByActivity(prev => {
+      const updated = { ...prev };
+      delete updated[activityName];
+      return updated;
     });
   };
 
   // Spremeni datum današnje aktivnosti na drug dan
   const changeTodayActivityDate = (activityName: string, targetIsoDate: string) => {
     const todayKey = new Date().toDateString();
-    const todayHistory = activityHistory[todayKey];
-    if (!todayHistory) return;
-
     const act = activities.find(a => a.text.replace(/^\S+\s/, '') === activityName);
-    const pointsForAct = act?.points || 0;
     const isConfirmed = act ? completedToday.includes(act.id) : false;
 
-    // remove from today items
-    const updatedTodayItems = todayHistory.items.filter(i => i !== activityName);
+    if (isConfirmed) {
+      // Aktivnost je že potrjena - premakni v activityHistory
+      const todayHistory = activityHistory[todayKey];
+      if (!todayHistory) return;
 
-    // compute target key (use UTC midnight for stability)
-    const d = new Date(targetIsoDate + 'T00:00:00Z');
-    const targetKey = d.toDateString();
-    const prevTarget = activityHistory[targetKey] || { total: 0, items: [] };
+      const pointsForAct = act?.points || 0;
+      const updatedTodayItems = todayHistory.items.filter(i => i !== activityName);
 
-    // move item; adjust totals only if activity was potrjena (confirmed)
-    const newTodayTotal = isConfirmed ? Math.max(0, todayHistory.total - pointsForAct) : todayHistory.total;
-    const newTargetTotal = isConfirmed ? prevTarget.total + pointsForAct : prevTarget.total;
+      // compute target key (use UTC midnight for stability)
+      const d = new Date(targetIsoDate + 'T00:00:00Z');
+      const targetKey = d.toDateString();
+      const prevTarget = activityHistory[targetKey] || { total: 0, items: [] };
 
-    const updated: Record<string, { total: number; items: string[] }> = {
-      ...activityHistory,
-      [todayKey]: { total: newTodayTotal, items: updatedTodayItems },
-      [targetKey]: { total: newTargetTotal, items: [...prevTarget.items, activityName] }
-    };
+      // move item; adjust totals only if activity was potrjena (confirmed)
+      const newTodayTotal = Math.max(0, todayHistory.total - pointsForAct);
+      const newTargetTotal = prevTarget.total + pointsForAct;
 
-    setActivityHistory(updated);
+      const updated: Record<string, { total: number; items: string[] }> = {
+        ...activityHistory,
+        [todayKey]: { total: newTodayTotal, items: updatedTodayItems },
+        [targetKey]: { total: newTargetTotal, items: [...prevTarget.items, activityName] }
+      };
 
-    // če je bilo potrjeno in se premakne proč od danes, tudi todayPoints zmanjša
-    if (isConfirmed && targetKey !== todayKey) {
-      setTodayPoints(prev => Math.max(0, prev - pointsForAct));
+      setActivityHistory(updated);
+
+      // če se premakne proč od danes, tudi todayPoints zmanjša
+      if (targetKey !== todayKey) {
+        setTodayPoints(prev => Math.max(0, prev - pointsForAct));
+      }
+    } else {
+      // Aktivnost še ni potrjena - samo posodobi pendingDatesByActivity
+      // (aktivnost ostane v pendingActivitiesToday, vendar bo ob potrditvi uporabljena targetIsoDate)
+      setPendingDatesByActivity(prev => ({ ...prev, [activityName]: targetIsoDate }));
     }
   };
 
-  // Potrdi aktivnost za današnji dan: skrij iz seznama "Dokončane danes" brez spremembe točk
+  // Potrdi aktivnost za današnji dan: dodaj v activityHistory in odstrani iz začasnega seznama
   const confirmTodayActivity = (activityName: string, index: number) => {
     const today = new Date().toDateString();
-    const todayHistory = activityHistory[today];
-    if (!todayHistory) return;
 
     const activity = activities.find(a => a.text.replace(/^\S+\s/, '') === activityName);
     if (!activity) return;
@@ -818,7 +898,8 @@ export default function PlantGrowthTracker() {
     if (completedToday.includes(activity.id)) return;
 
     // Uporabi pending datum za to postavko; sicer danes
-    const targetIso = pendingDates[index] || null;
+    // Uporabi pendingDatesByActivity za pravilno uporabo datuma po imenu aktivnosti
+    const targetIso = pendingDatesByActivity[activityName] || pendingDates[index] || null;
     const targetKey = targetIso ? new Date(targetIso + 'T00:00:00Z').toDateString() : today;
 
     // Dodaj točke šele ob potrditvi
@@ -842,23 +923,49 @@ export default function PlantGrowthTracker() {
       triggerPlantAnimation('grow');
     }
 
-    // zabeleži točke v pravilen dan in dodaj aktivnost v seznam za tooltip
+    // Zabeleži točke v pravilen dan in dodaj aktivnost v activityHistory (za tooltip grafa)
+    // To je prvič, ko se aktivnost doda v activityHistory - šele ob potrditvi!
     const prevTarget = activityHistory[targetKey] || { total: 0, items: [] };
     const cleanName = activity.text.replace(/^\S+\s/, '');
     const updated: Record<string, { total: number; items: string[] }> = { ...activityHistory };
+    // Allow multiple instances; we'll aggregate duplicates only in the tooltip display
     updated[targetKey] = { total: prevTarget.total + activity.points, items: [...prevTarget.items, cleanName] };
-    // ohrani današnji seznam postavk nespremenjen (skrijemo prikaz preko confirmedByDate)
     setActivityHistory(updated);
 
+    // Odstrani aktivnost iz začasnega seznama (pendingActivitiesToday) - aktivnost je sedaj potrjena
+    setPendingActivitiesToday(prev => prev.filter(item => item !== activityName));
+
     // označi kot potrjeno
-    setCompletedToday(prev => [...prev, activity.id]);
-    setConfirmedByDate(prev => ({
-      ...prev,
-      [today]: [ ...(prev[today] || []), activityName ]
-    }));
+    // Če je aktivnost potrjena za današnji dan, jo dodaj v completedToday
+    if (targetKey === today) {
+      setCompletedToday(prev => [...prev, activity.id]);
+    }
+    // Dodaj aktivnost v confirmedByDate za pravilen datum (targetKey, ne danes!)
+    // POMEMBNO: Aktivnost se mora dodati SAMO za izbrani datum (targetKey)
+    setConfirmedByDate(prev => {
+      const updated = { ...prev };
+      // Dodaj aktivnost za pravilen datum
+      updated[targetKey] = [ ...(updated[targetKey] || []), activityName ];
+      // Če je aktivnost dodana za pretekli datum, jo ODSTRANI iz danes (če je tam)
+      if (targetKey !== today && updated[today] && updated[today].includes(activityName)) {
+        updated[today] = updated[today].filter(item => item !== activityName);
+        // Če je seznam prazen, ga odstrani
+        if (updated[today].length === 0) {
+          delete updated[today];
+        }
+      }
+      return updated;
+    });
 
     // počisti pending izbirnik
     if (dateEditIndex === index) { setDateEditIndex(null); setDateEditValue(''); }
+    
+    // Odstrani datum iz pendingDatesByActivity po potrditvi (aktivnost je sedaj v activityHistory)
+    setPendingDatesByActivity(prev => {
+      const updated = { ...prev };
+      delete updated[activityName];
+      return updated;
+    });
   };
 
   const resetPlantCompletion = (plantId: string) => {
@@ -972,6 +1079,14 @@ export default function PlantGrowthTracker() {
     return null;
   };
 
+  // Vrni seznam današnjih postavk, ki še čakajo na potrditev
+  // Uporabi useMemo za memoizacijo in zagotovitev, da se izračuna z najnovejšim state-om
+  const pendingItemsForToday = useMemo(() => {
+    // Vrnimo aktivnosti iz pendingActivitiesToday (ki čakajo na potrditev)
+    // Aktivnosti iz activityHistory se prikažejo le v tooltip-u grafa po potrditvi
+    return pendingActivitiesToday;
+  }, [pendingActivitiesToday]);
+
   // Helper function to render plant emoji/image for selection modal
   const renderPlantEmoji = (plant: PlantType): React.ReactNode => {
     // For plants with all image stages, show the emoji from the plant name instead
@@ -1054,7 +1169,7 @@ export default function PlantGrowthTracker() {
       days.push(new Date(d).toDateString());
     }
     return days.map(d => ({
-      label: new Date(d).toLocaleDateString('sl-SI', { day: 'numeric', month: 'numeric' }).replace(',', ''),
+      label: new Date(d).getDate().toString(), // Samo številka dneva (1, 2, 3...)
       value: (activityHistory[d]?.total) || 0,
       date: new Date(d),
     }));
@@ -1182,9 +1297,6 @@ export default function PlantGrowthTracker() {
               <button className="btn-round" onClick={() => setShowAnalytics(!showAnalytics)} title="Analitika">
                 <BarChart3 size={18} />
               </button>
-              <button className="btn-round" onClick={resetTodayEntries} title="Počisti današnje vnose">
-                ✕
-              </button>
             </div>
           </div>
 
@@ -1265,13 +1377,13 @@ export default function PlantGrowthTracker() {
         </section>
 
         {/* Today's completed activities */}
-        {activityHistory[new Date().toDateString()] && (activityHistory[new Date().toDateString()].items.filter(i => !(confirmedByDate[new Date().toDateString()]||[]).includes(i)).length > 0) && (
+        {pendingItemsForToday.length > 0 && (
           <section className="card">
             <div className="section-title">
               <span>✅ Dokončane danes ({todayPoints} točk)</span>
             </div>
             <div className="grid">
-              {activityHistory[new Date().toDateString()].items.filter(i => !(confirmedByDate[new Date().toDateString()]||[]).includes(i)).map((item, index) => {
+              {pendingItemsForToday.map((item, index) => {
                 const act = activities.find(a => a.text.replace(/^\S+\s/, '') === item);
                 const isConfirmed = act ? completedToday.includes(act.id) : false;
                 return (
@@ -1288,14 +1400,15 @@ export default function PlantGrowthTracker() {
                         title="Spremeni datum"
                         onClick={() => {
                           setDateEditIndex(index);
-                          const existing = pendingDates[index];
+                          // Uporabi pendingDatesByActivity za pravilno uporabo datuma po imenu aktivnosti
+                          const existing = pendingDatesByActivity[item] || pendingDates[index];
                           if (existing) {
                             setDateEditValue(existing);
                           } else {
                             const d = new Date();
                             const iso = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())).toISOString().slice(0,10);
                             setDateEditValue(iso);
-                            setPendingDates(prev => ({ ...prev, [index]: iso }));
+                            setPendingDatesByActivity(prev => ({ ...prev, [item]: iso }));
                           }
                         }}
                       >
@@ -1304,7 +1417,7 @@ export default function PlantGrowthTracker() {
                       {dateEditIndex === index && (
                         <div className="calendar-pop">
                           <Calendar
-                            selected={(pendingDates[index] || dateEditValue) ? new Date((pendingDates[index] || dateEditValue) + 'T00:00:00Z') : undefined}
+                            selected={(pendingDatesByActivity[item] || pendingDates[index] || dateEditValue) ? new Date((pendingDatesByActivity[item] || pendingDates[index] || dateEditValue) + 'T00:00:00Z') : undefined}
                             onSelect={(d) => {
                               if (!d) {
                                 // Če je uporabnik kliknil že izbran datum (deselection), samo zapri koledar
@@ -1313,7 +1426,8 @@ export default function PlantGrowthTracker() {
                               }
                               const iso = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())).toISOString().slice(0,10);
                               setDateEditValue(iso);
-                              setPendingDates(prev => ({ ...prev, [index]: iso }));
+                              // Shrani datum po imenu aktivnosti
+                              setPendingDatesByActivity(prev => ({ ...prev, [item]: iso }));
                               // zapri koledar po izbiri datuma
                               setDateEditIndex(null);
                             }}
@@ -1355,86 +1469,7 @@ export default function PlantGrowthTracker() {
               </button>
             </div>
 
-            {/* Goals Section */}
-            {(() => {
-              // Calculate weekly goals based on actual activity data
-              const today = new Date();
-              const thisWeekStart = new Date(today);
-              thisWeekStart.setDate(today.getDate() - today.getDay()); // Start of week (Sunday)
-              thisWeekStart.setHours(0, 0, 0, 0);
-              
-              const thisWeekDays = Object.keys(activityHistory).filter(key => {
-                const date = new Date(key);
-                return date >= thisWeekStart && date <= today;
-              });
-              
-              // Count exercise days (activity with exercise category)
-              const exerciseDays = thisWeekDays.filter(key => {
-                const items = activityHistory[key]?.items || [];
-                return items.some(item => {
-                  const activity = activities.find(a => a.text.replace(/^\S+\s/, '') === item);
-                  return activity?.category === 'exercise';
-                });
-              }).length;
-              
-              // Count mental activity days
-              const mentalDays = thisWeekDays.filter(key => {
-                const items = activityHistory[key]?.items || [];
-                return items.some(item => {
-                  const activity = activities.find(a => a.text.replace(/^\S+\s/, '') === item);
-                  return activity?.category === 'mental';
-                });
-              }).length;
-              
-              // Count social activity days
-              const socialDays = thisWeekDays.filter(key => {
-                const items = activityHistory[key]?.items || [];
-                return items.some(item => {
-                  const activity = activities.find(a => a.text.replace(/^\S+\s/, '') === item);
-                  return activity?.category === 'social';
-                });
-              }).length;
-              
-              const exerciseTarget = 7;
-              const mentalTarget = 5;
-              const socialTarget = 5;
-              
-              return (
-            <div className="goals-section">
-                  <h3 style={{ margin: '0 0 12px 0', color: '#166534' }}>🎯 Tedenski cilji (ta teden)</h3>
-              <div className="goal-item">
-                    <span>💪 Vaje ({exerciseTarget} dni)</span>
-                <div className="goal-progress">
-                      <div 
-                        className="goal-progress-bar" 
-                        style={{ width: `${Math.min(100, (exerciseDays / exerciseTarget) * 100)}%` }}
-                      ></div>
-                </div>
-                    <span>{exerciseDays}/{exerciseTarget}</span>
-              </div>
-              <div className="goal-item">
-                <span>🧠 Mentalna aktivnost</span>
-                <div className="goal-progress">
-                      <div 
-                        className="goal-progress-bar" 
-                        style={{ width: `${Math.min(100, (mentalDays / mentalTarget) * 100)}%` }}
-                      ></div>
-                </div>
-                    <span>{mentalDays}/{mentalTarget}</span>
-              </div>
-              <div className="goal-item">
-                <span>👥 Socialne aktivnosti</span>
-                <div className="goal-progress">
-                      <div 
-                        className="goal-progress-bar" 
-                        style={{ width: `${Math.min(100, (socialDays / socialTarget) * 100)}%` }}
-                      ></div>
-                </div>
-                    <span>{socialDays}/{socialTarget}</span>
-              </div>
-            </div>
-              );
-            })()}
+            {/* Goals Section removed on request */}
 
             {/* Activity Heatmap */}
             <div style={{ marginTop: '16px' }}>
@@ -1662,13 +1697,30 @@ export default function PlantGrowthTracker() {
                   if (!p) return null;
                   if (graphView === 'days') {
                     const key = p.date && p.date.toDateString && p.date.toDateString();
-                    const itemsRec = key ? activityHistory[key] : undefined;
-                    const itemsList = itemsRec?.items || [];
+                    const todayKey = new Date().toDateString();
+                    // Tooltip naj prikaže SAMO potrjene postavke za danes; za ostale dni
+                    // so v activityHistory že samo potrjene postavke.
+                    const baseItems = key === todayKey
+                      ? (confirmedByDate[todayKey] || [])
+                      : ((key && activityHistory[key]?.items) || []);
+                    // Izračunaj skupne točke in prikaži aktivnosti z vejico
+                    let totalPoints = 0;
+                    const activityCounts: Record<string, number> = {};
+                    (baseItems as string[]).forEach((name: string) => {
+                      const activity = activities.find(a => a.text.replace(/^\S+\s/, '') === name);
+                      const points = activity?.points || 0;
+                      totalPoints += points;
+                      activityCounts[name] = (activityCounts[name] || 0) + 1;
+                    });
+                    
+                    // Prikaži aktivnosti z vejico (brez števila, ker seštevamo točke)
+                    const activityList = Object.keys(activityCounts);
+                    
                     return (
                       <div className="recharts-default-tooltip">
                         <div className="recharts-tooltip-label">{p.date.toLocaleDateString('sl-SI', { day: 'numeric', month: 'long' })}</div>
-                        {itemsList.length > 0 && (
-                          <div className="recharts-tooltip-item">{p.value} - {itemsList.join(', ')}</div>
+                        {baseItems.length > 0 && (
+                          <div className="recharts-tooltip-item">{totalPoints}t - {activityList.join(', ')}</div>
                         )}
                       </div>
                     );
@@ -1985,6 +2037,18 @@ export default function PlantGrowthTracker() {
                   <input id="toggle-suggest" type="checkbox" checked={enableActivitySuggestions} onChange={(e) => setEnableActivitySuggestions(e.target.checked)} />
                   <span className="slider" />
                 </label>
+              </div>
+              <div style={{ marginTop: 24, paddingTop: 24, borderTop: '1px solid #e5e7eb' }}>
+                <button 
+                  className="btn-primary" 
+                  onClick={resetAllActivityEntries}
+                  style={{ width: '100%' }}
+                >
+                  Resetiraj vse vnose aktivnosti
+                </button>
+                <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '8px', textAlign: 'center' }}>
+                  Izbriše vso zgodovino aktivnosti, grafe in vse pridobljene točke
+                </div>
               </div>
             </div>
           </div>
